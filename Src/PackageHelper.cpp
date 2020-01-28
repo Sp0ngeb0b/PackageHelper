@@ -2,6 +2,7 @@
 	PackageHelper Native Actor
 
 	Revision history:
+		* Modified by Sp0ngeb0b
 		* Created by AnthraX
 =============================================================================*/
 
@@ -42,6 +43,88 @@ typedef CHAR*			PSTR;
 TArray<FString> * realServerActors;
 TArray<FString> * realServerPackages;
 FFileManager*	PHFileManager = GFileManager;
+
+/*-----------------------------------------------------------------------------
+	isDefaultPackage - Returns whether a package was shipped with UT 
+	(addition by Sp0ngeb0b)
+-----------------------------------------------------------------------------*/
+bool isDefaultPackage(const TCHAR* packageName) {
+	static const TCHAR* defaultPackages[] = { 
+		// Music
+		TEXT("Botmca9"), TEXT("Botpck10"), TEXT("Cannon"), TEXT("Colossus"), TEXT("Course"), TEXT("Credits"), TEXT("Ending"), TEXT("Engima"), TEXT("firebr"), TEXT("Foregone"), TEXT("Godown"), TEXT("Lock"), TEXT("Mech8"), TEXT("Mission"), TEXT("Nether"), TEXT("Organic"), TEXT("Phantom"), TEXT("Razor-ub"), TEXT("Run"), TEXT("SaveMe"), TEXT("Savemeg"), TEXT("Seeker"), TEXT("Seeker2"), TEXT("Skyward"), TEXT("Strider"), TEXT("Suprfist"), TEXT("UnWorld2"), TEXT("utmenu23"), TEXT("Uttitle"), TEXT("Wheels"),
+
+		// Sounds
+		TEXT("Activates"), TEXT("Addon1"), TEXT("AmbAncient"), TEXT("AmbCity"), TEXT("AmbModern"), TEXT("AmbOutside"), TEXT("Announcer"), TEXT("BossVoice"), TEXT("DDay"), TEXT("DMatch"), TEXT("DoorsAnc"), TEXT("DoorsMod"), TEXT("Extro"), TEXT("Female1Voice"), TEXT("Female2Voice"), TEXT("FemaleSounds"), TEXT("LadderSounds"), TEXT("Male1Voice"), TEXT("Male2Voice"), TEXT("MaleSounds"), TEXT("noxxsnd"), TEXT("openingwave"), TEXT("Pan1"), TEXT("rain"), TEXT("TutVoiceAs"), TEXT("TutVoiceCTF"), TEXT("TutVoiceDM"), TEXT("TutVoiceDOM"), TEXT("VRikers"),
+ 
+		// System
+		TEXT("Botpack"), TEXT("Core"), TEXT("Editor"), TEXT("Engine"), TEXT("Fire"), TEXT("IpDrv"), TEXT("IpServer"), TEXT("UBrowser"), TEXT("UMenu"), TEXT("UnrealI"), TEXT("UnrealShare"), TEXT("UTBrowser"), TEXT("UTMenu"), TEXT("UTServerAdmin"), TEXT("UWeb"), TEXT("UWindow"), 
+	
+		// Textures
+		TEXT("AlfaFX"), TEXT("Ancient"), TEXT("ArenaTex"), TEXT("Belt_fx"), TEXT("BluffFX"), TEXT("BossSkins"), TEXT("castle1"), TEXT("ChizraEFX"), TEXT("city"), TEXT("commandoskins"), TEXT("Coret_FX"), TEXT("Creative"), TEXT("credits"), TEXT("Crypt"), TEXT("Crypt2"), TEXT("Crypt_FX"), TEXT("CTF"), TEXT("DacomaFem"), TEXT("DacomaSkins"), TEXT("DDayFX"), TEXT("DecayedS"), TEXT("Detail"), TEXT("DMeffects"), TEXT("Egypt"), TEXT("EgyptPan"), TEXT("eol"), TEXT("Faces"), TEXT("FCommandoSkins"), TEXT("Female1Skins"), TEXT("Female2Skins"), TEXT("FireEng"), TEXT("FlareFX"), TEXT("FractalFX"), TEXT("GenEarth"), TEXT("GenFluid"), TEXT("GenFX"), TEXT("GenIn"), TEXT("GenTerra"), TEXT("GenWarp"), TEXT("GothFem"), TEXT("GothSkins"), TEXT("GreatFire"), TEXT("GreatFire2"), TEXT("HubEffects"), TEXT("Indus1"), TEXT("Indus2"), TEXT("Indus3"), TEXT("Indus4"), TEXT("Indus5"), TEXT("Indus6"), TEXT("Indus7"), TEXT("ISVFX"), TEXT("JWSky"), TEXT("LadderFonts"), TEXT("LadrArrow"), TEXT("LadrStatic"), TEXT("LavaFX"), TEXT("Lian-x"), TEXT("Liquids"), TEXT("Logo"), TEXT("Male1Skins"), TEXT("Male2Skins"), TEXT("Male3Skins"), TEXT("MenuGr"), TEXT("Metalmys"), TEXT("Mine"), TEXT("NaliCast"), TEXT("NaliFX"), TEXT("NivenFX"), TEXT("of1"), TEXT("Old_FX"), TEXT("Palettes"), TEXT("PhraelFx"), TEXT("PlayrShp"), TEXT("Queen"), TEXT("RainFX"), TEXT("Render"), TEXT("RotatingU"), TEXT("Scripted"), TEXT("SGirlsSkins"), TEXT("ShaneChurch"), TEXT("ShaneDay"), TEXT("ShaneSky"), TEXT("Skaarj"), TEXT("SkTrooperSkins"), TEXT("SkyBox"), TEXT("SkyCity"), TEXT("Slums"), TEXT("Soldierskins"), TEXT("SpaceFX"), TEXT("Starship"), TEXT("TCrystal"), TEXT("Terranius"), TEXT("TrenchesFX"), TEXT("UT"), TEXT("UTbase1"), TEXT("UTcrypt"), TEXT("UTtech1"), TEXT("UTtech2"), TEXT("UTtech3"), TEXT("UT_ArtFX"), TEXT("UWindowFonts"), TEXT("XbpFX"), TEXT("XFX"), TEXT("Xtortion") 
+	};
+
+	for (INT i = 0; i < sizeof(defaultPackages)/sizeof(TCHAR*); ++i)
+	{
+		if(!appStricmp(packageName, defaultPackages[i])) return true;
+	}
+	return false;
+}
+
+/*-----------------------------------------------------------------------------
+	getPackageGUIDs - Recursively constructs the list of GUIDs of a package
+	(addition by Sp0ngeb0b)
+-----------------------------------------------------------------------------*/
+void getPackageGUIDs(const TCHAR* packageName, FString& foundGUIDs, ULinkerLoad* Linker, UBOOL IgnoreDefaultPackages = true) {
+	if(IgnoreDefaultPackages && isDefaultPackage(packageName)) return;
+
+	UPackage* locatedPackage = NULL;
+
+	if(!Linker) {
+		for (TObjectIterator<UPackage> It; It; ++It)
+		{
+			if (!appStricmp(packageName,It->GetName()))
+			{
+				locatedPackage = *It;
+				break;
+			}
+		}
+
+		if(!locatedPackage) {
+			UObject::BeginLoad();
+			UPackage* InPackage = UObject::CreatePackage(NULL, packageName);
+			Linker = UObject::GetPackageLinker(InPackage, NULL, LOAD_None, NULL, NULL);
+			UObject::EndLoad();
+		} 
+		else if (locatedPackage && !locatedPackage->GetLinker())
+		{
+			UObject::BeginLoad();
+			UPackage* InPackage = UObject::CreatePackage(NULL, locatedPackage->GetName());
+			Linker = UObject::GetPackageLinker(InPackage, NULL, LOAD_None, NULL, NULL);
+			UObject::EndLoad();
+		}
+		else if (locatedPackage && locatedPackage->GetLinker())
+		{
+			Linker = locatedPackage->GetLinker();
+		}
+	}
+
+	if (Linker)
+	{
+		FString thisGUID = Linker->Summary.Guid.String();
+
+		if(foundGUIDs.InStr(thisGUID) == -1) {
+			
+			if(foundGUIDs.Len() > 0) foundGUIDs = foundGUIDs + TEXT(",") + thisGUID;
+			else foundGUIDs = thisGUID;
+			//GLog->Logf(TEXT("Found dependency on %s"), packageName);
+			for (INT i = 0; i < Linker->ImportMap.Num(); ++i)
+			{
+				const TCHAR* tmpPackageName = (Linker->ImportMap(i).SourceLinker->LinkerRoot->GetFullName())+8;
+				getPackageGUIDs(tmpPackageName, foundGUIDs, Linker->ImportMap(i).SourceLinker);
+			}
+		}
+	}
+}
 
 /*-----------------------------------------------------------------------------
 	MD5Arc - Calculates the MD5 hash of an FArchive
@@ -1032,6 +1115,24 @@ void APHActor::execFindImports(FFrame& Stack, RESULT_DECL)
 	}
 
 	*(FString*)Result = Packages;
+	unguard;
+}
+
+/*-----------------------------------------------------------------------------
+	execGetGUIDs
+	(addition by Sp0ngeb0b)
+-----------------------------------------------------------------------------*/
+void APHActor::execGetGUIDs(FFrame& Stack, RESULT_DECL)
+{
+	guard(APHActor::execGetGUIDs);
+	P_GET_STR(PackageName);
+	P_GET_UBOOL_OPTX(IgnoreDefaultPackages, true)
+	P_FINISH;
+
+	FString foundGUIDs;
+	getPackageGUIDs(*PackageName, foundGUIDs, NULL, IgnoreDefaultPackages);
+
+	*(FString*)Result = foundGUIDs;
 	unguard;
 }
 

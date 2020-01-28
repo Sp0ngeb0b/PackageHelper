@@ -37,6 +37,8 @@ native function bool   CloseBinaryLog();                             // Close bi
 native function bool   IsInPackageMap(string Package);               // Meh..
 native function bool   HasEmbeddedCode(string Mapname);              // Maps with embedded code have to be checked
 native function string FindImports(string ImportedFunction);         // Find all packages that import the specified function
+native function string GetGUIDs(string PackageName,                  // Returns all GUIDs a package depends on (including its own).
+                                optional bool IgnoreDefaultPackages);// Don't return GUIDs of packages shipped with UT (default: true).
 
 // =============================================================================
 // Touch ~ Used to set the reference to the targetactor
@@ -104,6 +106,13 @@ function string GetItemName(string Message)
                 bResult = HasEmbeddedCode(Mid(Message, 16));
             else if (Left(Message, 11) == "FINDIMPORTS")
                 return FindImports(Mid(Message, 12));
+            else if (Left(Message, 8) == "GETGUIDS") {
+                     if (Left(Message, 10) == "GETGUIDS_0")     return GetGUIDs(Mid(Message, 11), false);
+                else if (Left(Message, 14) == "GETGUIDS_FALSE") return GetGUIDs(Mid(Message, 15), false);
+                else if (Left(Message, 10) == "GETGUIDS_1")     return GetGUIDs(Mid(Message, 11), true);
+                else if (Left(Message, 13) == "GETGUIDS_TRUE")  return GetGUIDs(Mid(Message, 14), true);
+                else                                            return GetGUIDs(Mid(Message, 9));
+            }
             break;
     }
 
